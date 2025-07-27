@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Google Chat Viewer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f1f3f4;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .hidden { display: none; }
+    .message {
+      margin: 14px 0;
+      padding: 10px 14px;
+      border-radius: 16px;
+      display: inline-block;
+      max-width: 75%;
+      position: relative;
+    }
+    .sent { background-color: #d2f8d2; float: right; text-align: right; }
+    .received { background-color: #e5e5ea; float: left; text-align: left; }
+    .meta {
+      font-size: 0.75em;
+      color: #555;
+      margin-bottom: 6px;
+    }
+    .reactions {
+      font-size: 0.9em;
+      margin-top: 4px;
+    }
+    .clear { clear: both; }
+    input, button {
+      margin: 8px 0;
+      padding: 8px;
+      font-size: 1em;
+    }
+    h2 { margin-top: 0; }
+  </style>
+</head>
+<body>
+
+  <div class="container" id="setupScreen">
+    <h2>Google Chat Viewer Setup</h2>
+    <label for="emailInput">Your email:</label><br />
+    <input type="email" id="emailInput" placeholder="you@example.com" /><br />
+
+    <label for="fileInput">Upload messages.json (optional):</label><br />
+    <input type="file" id="fileInput" accept=".json" /><br />
+
+    <button id="loadChatBtn">Load Chat</button>
+  </div>
+
+  <div class="container hidden" id="chatScreen">
+    <h2>Chat View</h2>
+    <div id="chatBox"></div>
+  </div>
+
+  <script>
+    const DEFAULT_JSON_URL = "https://example.com/messages.json"; // ⬅️ Replace with your hosted file
+
+    document.getElementById("loadChatBtn").addEventListener("click", async () => {
+      const email = document.getElementById("emailInput").value.trim().toLowerCase();
+      const fileInput = document.getElementById("fileInput");
+      const chatBox = document.getElementById("chatBox");
+
+      if (!email) {
+        alert("Please enter your email.");
+        return;
+      }
+
+      let content = "";
+
+      if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        content = await file.text();
+      } else {
+        try {
+          const response = await fetch(DEFAULT_JSON_URL);
+          content = await response.text();
+        } catch (err) {
+          alert("Could not fetch default file.");
+          return;
+        }
+      }
+
+      const parsed = JSON.parse(content);
+      const messages = parsed.messages || [];
+      chatBox.innerHTML = "";
+
+      messages.forEach(msg => {
+        const name = msg.creator?.name || "Unknown";
+        const senderEmail = msg.creator?.email?.toLowerCase() || "unknown";
+        const text = msg.text || "";
+        const date = msg.created_date || "";
+        const isMe = senderEmail === email;
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "message " + (isMe ? "sent" : "received");
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = `${name} • ${date}`;
+        wrapper.appendChild(meta);
+
+        const body = document.createElement("div");
+        body.textContent = text;
+        wrapper.appendChild(body);
+
+        if (msg.reactions && msg.reactions.length > 0) {
+          const reactDiv = document.createElement("div");
+          reactDiv.className = "reactions";
+          msg.reactions.forEach(r => {
+            const emoji = r.emoji?.unicode || "👍";
+            const count = r.reactor_emails?.length || 0;
+            reactDiv.textContent += `${emoji} ${count}  `;
+          });
+          wrapper.appendChild(reactDiv);
+        }
+
+        chatBox.appendChild(wrapper);
+
+        const clear = document.createElement("div");
+        clear.className = "clear";
+        chatBox.appendChild(clear);
+      });
+
+      document.getElementById("setupScreen").classList.add("hidden");
+      document.getElementById("chatScreen").classList.remove("hidden");
+    });
+  </script>
+</body>
+</html>
